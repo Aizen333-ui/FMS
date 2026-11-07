@@ -27,12 +27,10 @@ $nav = match ($role) {
         '/sales/returns' => 'Returns',
     ],
     'Administrator' => [
-        '/admin' => 'Dashboard',
-        '/admin/users' => 'Users',
-        '/admin/accounts' => 'Admin accounts',
-        '/admin/reports' => 'Reports',
-        '/admin/settings' => 'System settings',
-        '/admin/backup' => 'Database backup',
+        '/admin/users' => '👥 Manage Users',
+        '/admin/accounts' => '🔑 Admin Accounts',
+        '/admin/reports' => '📄 Reports',
+        '/admin/backup' => '💾 Backup',
     ],
     default => [],
 };
@@ -50,7 +48,7 @@ $nav = match ($role) {
 <?php if ($nav === []): ?>
 <main id="main" class="auth-shell">
     <?php foreach (Http::flashes() as $flash): ?>
-        <div class="alert <?= Http::e($flash['type']) ?>" role="status"><?= Http::e($flash['message']) ?></div>
+        <div class="alert <?= Http::e($flash['type']) ?>"<?= in_array($flash['type'], ['success', 'deleted'], true) ? ' data-auto-dismiss' : '' ?> role="status"><?= Http::e($flash['message']) ?></div>
     <?php endforeach; ?>
     <?= $content ?>
 </main>
@@ -66,7 +64,7 @@ $nav = match ($role) {
         <?php endforeach; ?>
         <form method="post" action="<?= Http::e(Http::url('/logout')) ?>">
             <?= Http::csrfField() ?>
-            <button class="linkish" type="submit">Log out</button>
+            <button class="linkish" type="submit"><span aria-hidden="true">⏻</span><span>Log out</span></button>
         </form>
     </aside>
     <div class="workspace">
@@ -79,7 +77,7 @@ $nav = match ($role) {
         </header>
         <main id="main">
             <?php foreach (Http::flashes() as $flash): ?>
-                <div class="alert <?= Http::e($flash['type']) ?>" role="status"><?= Http::e($flash['message']) ?></div>
+                <div class="alert <?= Http::e($flash['type']) ?>"<?= in_array($flash['type'], ['success', 'deleted'], true) ? ' data-auto-dismiss' : '' ?> role="status"><?= Http::e($flash['message']) ?></div>
             <?php endforeach; ?>
             <?= $content ?>
         </main>

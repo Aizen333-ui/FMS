@@ -1,4 +1,10 @@
 (function () {
+    document.querySelectorAll("[data-auto-dismiss]").forEach(function (alert) {
+        window.setTimeout(function () {
+            alert.remove();
+        }, 10000);
+    });
+
     const toggle = document.querySelector("[data-menu]");
     const sidebar = document.querySelector(".sidebar");
     if (toggle && sidebar) {

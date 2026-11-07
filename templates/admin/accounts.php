@@ -16,9 +16,8 @@
         <div class="actions">
             <button type="submit" name="action" value="add">Add admin</button>
             <button class="secondary" type="submit" name="action" value="update">Update admin</button>
+            <button class="danger" type="submit" name="action" value="delete">Delete admin</button>
         </div>
-        <label class="check"><input type="checkbox" name="confirm" value="yes"> Confirm deletion</label>
-        <button class="danger" type="submit" name="action" value="delete">Delete admin</button>
     <div class="table-wrap">
         <table>
             <caption>Administrators</caption>
@@ -35,14 +34,42 @@
         </table>
     </div>
     </form>
+    <p class="page-back"><a class="button secondary" href="<?= Http::e(Http::url('/admin')) ?>">Back</a></p>
 </section>
 <script>
 document.querySelectorAll("[data-admin-name]").forEach(function (radio) {
+    let wasCheckedOnPointerDown = false;
+
+    radio.addEventListener("pointerdown", function () {
+        wasCheckedOnPointerDown = radio.checked;
+    });
+
+    radio.addEventListener("click", function () {
+        const shouldUnselect = wasCheckedOnPointerDown && radio.checked;
+        wasCheckedOnPointerDown = false;
+        if (!shouldUnselect) {
+            return;
+        }
+
+        radio.checked = false;
+        const form = document.getElementById("admin-form");
+        form.username.value = "";
+        form.password.value = "";
+        form.confirm.value = "";
+    });
+
     radio.addEventListener("change", function () {
         const form = document.getElementById("admin-form");
         form.username.value = radio.getAttribute("data-admin-name");
         form.password.value = "";
         form.confirm.value = "";
     });
+});
+
+document.getElementById("admin-form").addEventListener("submit", function (event) {
+    if (event.submitter && event.submitter.name === "action" && event.submitter.value === "delete"
+        && !window.confirm("Are you sure you want to delete this admin?")) {
+        event.preventDefault();
+    }
 });
 </script>

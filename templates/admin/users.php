@@ -1,11 +1,13 @@
 <?php use Fms\Catalog; use Fms\Http; ?>
 <section class="panel">
-    <form method="get" class="form-grid">
+    <form method="get" class="user-search">
         <label>Search name, username, or role
             <input name="q" value="<?= Http::e($search) ?>">
         </label>
-        <button type="submit">Search</button>
-        <a class="button secondary" href="<?= Http::e(Http::url('/admin/users')) ?>">Refresh</a>
+        <div class="actions">
+            <button type="submit">Search</button>
+            <a class="button secondary" href="<?= Http::e(Http::url('/admin/users')) ?>">Refresh</a>
+        </div>
     </form>
     <h2>Account</h2>
     <form method="post" class="stack" id="user-form">
@@ -37,9 +39,8 @@
             <button class="secondary" type="submit" name="action" value="update">Update user</button>
             <button class="secondary" type="submit" name="action" value="reset">Reset password</button>
             <button class="secondary" type="submit" name="action" value="toggle">Enable or disable</button>
+            <button class="danger" type="submit" name="action" value="delete">Delete user</button>
         </div>
-        <label class="check"><input type="checkbox" name="confirm" value="yes"> Confirm deletion</label>
-        <button class="danger" type="submit" name="action" value="delete">Delete user</button>
     <div class="table-wrap">
         <table>
             <caption>Users</caption>
@@ -60,9 +61,32 @@
         </table>
     </div>
     </form>
+    <p class="page-back"><a class="button secondary" href="<?= Http::e(Http::url('/admin')) ?>">Back</a></p>
 </section>
 <script>
 document.querySelectorAll("[data-user]").forEach(function (radio) {
+    let wasCheckedOnPointerDown = false;
+
+    radio.addEventListener("pointerdown", function () {
+        wasCheckedOnPointerDown = radio.checked;
+    });
+
+    radio.addEventListener("click", function () {
+        const shouldUnselect = wasCheckedOnPointerDown && radio.checked;
+        wasCheckedOnPointerDown = false;
+        if (!shouldUnselect) {
+            return;
+        }
+
+        radio.checked = false;
+        const form = document.getElementById("user-form");
+        form.full_name.value = "";
+        form.username.value = "";
+        form.role.value = "";
+        form.password.value = "";
+        form.confirm.value = "";
+    });
+
     radio.addEventListener("change", function () {
         const row = JSON.parse(radio.getAttribute("data-user"));
         const form = document.getElementById("user-form");
@@ -72,5 +96,12 @@ document.querySelectorAll("[data-user]").forEach(function (radio) {
         form.password.value = "";
         form.confirm.value = "";
     });
+});
+
+document.getElementById("user-form").addEventListener("submit", function (event) {
+    if (event.submitter && event.submitter.name === "action" && event.submitter.value === "delete"
+        && !window.confirm("Are you sure you want to delete this user?")) {
+        event.preventDefault();
+    }
 });
 </script>

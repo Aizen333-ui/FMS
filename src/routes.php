@@ -56,7 +56,6 @@ function register_routes(Router $router): void
     $router->map('POST', '/admin/users', [AdminController::class, 'users'], $admin);
     $router->map('GET', '/admin/accounts', [AdminController::class, 'accounts'], $admin);
     $router->map('POST', '/admin/accounts', [AdminController::class, 'accounts'], $admin);
-    $router->map('GET', '/admin/settings', [AdminController::class, 'settings'], $admin);
     $router->map('GET', '/admin/logs/export', [AdminController::class, 'exportLogs'], $admin);
     $router->map('GET', '/admin/reports', [AdminController::class, 'reports'], $admin);
     $router->map('GET', '/admin/backup', [AdminController::class, 'backup'], $admin);

@@ -28,10 +28,14 @@ final class AdminController
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             Guard::handle(function (): string {
                 $action = Http::post('action');
+                if ($action === 'delete') {
+                    self::deleted();
+                    Http::flash('deleted', 'User deleted successfully.');
+                    return '';
+                }
                 return match ($action) {
                     'add' => self::added(),
                     'update' => self::updated(),
-                    'delete' => self::deleted(),
                     'reset' => self::reset(),
                     'toggle' => self::toggled(),
                     default => throw new ValidationException('Unknown action.'),
@@ -66,11 +70,9 @@ final class AdminController
                     return 'Admin updated successfully.';
                 }
                 if ($action === 'delete') {
-                    if (Http::post('confirm') !== 'yes') {
-                        throw new ValidationException('Confirm the action before continuing.');
-                    }
                     AdminService::delete((int) Http::post('admin_id'));
-                    return 'Admin deleted.';
+                    Http::flash('deleted', 'Admin deleted successfully.');
+                    return '';
                 }
                 throw new ValidationException('Unknown action.');
             }, '/admin/accounts');
@@ -81,16 +83,6 @@ final class AdminController
         ]);
     }
 
-    public static function settings(): void
-    {
-        Guard::database();
-        Http::render('admin/settings', [
-            'title' => 'System settings',
-            'status' => AdminService::connectionStatus(),
-            'logs' => AdminService::logs(),
-        ]);
-    }
-
     public static function exportLogs(): void
     {
         Guard::database();
@@ -98,7 +90,7 @@ final class AdminController
             $body = AdminService::logExport();
         } catch (ValidationException $e) {
             Http::flash('error', $e->getMessage());
-            Http::redirect('/admin/settings');
+            Http::redirect('/admin/reports');
         }
         $name = 'FactoryManagement_Logs_' . date('Ymd_His') . '.txt';
         header('Content-Type: text/plain; charset=utf-8');
@@ -112,6 +104,7 @@ final class AdminController
         Http::render('admin/reports', [
             'title' => 'Admin reports',
             'data' => ReportService::admin(),
+            'logs' => AdminService::logs(),
         ]);
     }
 
@@ -175,13 +168,9 @@ final class AdminController
         return 'User updated successfully.';
     }
 
-    private static function deleted(): string
+    private static function deleted(): void
     {
-        if (Http::post('confirm') !== 'yes') {
-            throw new ValidationException('Confirm the action before continuing.');
-        }
         UserService::delete((int) Http::post('user_id'));
-        return 'User deleted successfully.';
     }
 
     private static function reset(): string

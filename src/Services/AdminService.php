@@ -140,35 +140,8 @@ final class AdminService
                 . ' | Status: ' . $log['Status'];
             $lines[] = '------------------------------------';
         }
-        Audit::add(Auth::username(), 'Export Logs', 'System Settings', 'System logs exported successfully', 'Success');
+        Audit::add(Auth::username(), 'Export Logs', 'Reports', 'System logs exported successfully', 'Success');
         return implode("\n", $lines) . "\n";
-    }
-
-    public static function connectionStatus(): array
-    {
-        $config = Database::config();
-        $shown = self::redact((string) ($config['connection_string'] ?? ''));
-        try {
-            if (!Database::configured()) {
-                throw new \RuntimeException('Connection string is empty.');
-            }
-            Database::value('SELECT 1');
-            return [
-                'ok' => true,
-                'connection' => $shown,
-                'users' => (int) Database::value('SELECT COUNT(*) FROM Users'),
-                'admins' => self::count(),
-                'message' => 'Database connection: OK',
-            ];
-        } catch (\Throwable $e) {
-            return [
-                'ok' => false,
-                'connection' => $shown,
-                'users' => null,
-                'admins' => null,
-                'message' => 'Database connection: FAILED — ' . $e->getMessage(),
-            ];
-        }
     }
 
     private static function insert(string $username, string $password, string $module, string $description): void

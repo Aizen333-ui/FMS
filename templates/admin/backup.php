@@ -20,4 +20,5 @@
             </tbody>
         </table>
     </div>
+    <p class="page-back"><a class="button secondary" href="<?= Http::e(Http::url('/admin')) ?>">Back</a></p>
 </section>

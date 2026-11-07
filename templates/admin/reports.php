@@ -42,3 +42,26 @@
         </table>
     </div>
 </section>
+<section class="panel" style="margin-top:1rem">
+    <p><a class="button" href="<?= Http::e(Http::url('/admin/logs/export')) ?>">Export logs</a></p>
+    <div class="table-wrap audit-log-wrap">
+        <table>
+            <caption>Audit logs</caption>
+            <thead><tr><th>User</th><th>Action</th><th>Module</th><th>Description</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>
+            <?php foreach ($logs as $log): ?>
+                <tr>
+                    <td><?= Http::e($log['Username']) ?></td>
+                    <td><?= Http::e($log['Action']) ?></td>
+                    <td><?= Http::e($log['Module']) ?></td>
+                    <td><?= Http::e($log['Description']) ?></td>
+                    <td><?= Http::e($log['Status']) ?></td>
+                    <td><?= Http::e($log['LogDate']) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if ($logs === []): ?><tr><td colspan="6">No logs yet.</td></tr><?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</section>
+<p class="page-back"><a class="button secondary" href="<?= Http::e(Http::url('/admin')) ?>">Back</a></p>
