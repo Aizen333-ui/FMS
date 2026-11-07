@@ -56,7 +56,7 @@ $nav = match ($role) {
 <div class="shell">
     <aside class="sidebar" aria-label="Sections">
         <div class="brand">
-            <strong>MS Crete</strong>
+            <strong>Factory Management</strong>
             <span><?= Http::e($role) ?></span>
         </div>
         <?php foreach ($nav as $href => $label): ?>
