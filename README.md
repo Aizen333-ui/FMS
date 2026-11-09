@@ -15,7 +15,7 @@ Requirements: PHP 8.1 or newer with PDO, and MySQL 8+ or MariaDB 10.5+ for the n
    mysql -u fms -p factorydb < database/schema.mysql.sql
    ```
 
-   Or, after the connection string is set, run `php bin/install.php`. That script refuses to run while the connection string is empty.
+   Or, after the connection string is set, run `php bin/install.php`. That script refuses to run while the connection string is empty. To update an existing database, apply the schema again; it creates the material catalog and imports names and units from existing stock rows.
 3. Edit `config/database.php` and set the PDO connection string, username, and password. Example:
 
    ```php
@@ -52,7 +52,7 @@ The test runner creates a temporary SQLite database through `FMS_CONNECTION_STRI
 | Sales home, new sale, products, customers, history, returns, invoice | `/sales` | Sales Person |
 | First administrator, admin login, users, admin accounts, reports, settings, backup | `/admin` | Administrator |
 
-Persisted tables match the desktop queries: `Users`, `SystemAdmins`, `AuditLogs`, `Workers`, `Products`, `RawMaterial`, `Payments`, `Production`, `MaterialUsage`, `Customers`, `Sales`, `SaleItems`, `SalesPayment`, and `Returns`. The `Products` table starts empty. The owner adds each product and its unit, the same way workers are added. Nothing is inserted ahead of time.
+Persisted tables match the desktop queries: `Users`, `SystemAdmins`, `AuditLogs`, `Workers`, `Products`, `MaterialCatalog`, `RawMaterial`, `Payments`, `Production`, `MaterialUsage`, `Customers`, `Sales`, `SaleItems`, `SalesPayment`, and `Returns`. The `Products` table and material catalog start empty. The owner adds each product and its unit, and adds each raw material by entering its name, unit, quantity, and unit price. Nothing is inserted ahead of time.
 
 ## Adaptations
 

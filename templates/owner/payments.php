@@ -7,12 +7,15 @@
         <label>Reason
             <select name="reason" data-reason required>
                 <option value="">Select a reason...</option>
+                <?php foreach ($materials as $material): ?>
+                    <option value="<?= Http::e($material['Name']) ?>"><?= Http::e($material['Name']) ?></option>
+                <?php endforeach; ?>
                 <?php foreach (Catalog::PAYMENT_REASONS as $reason): ?>
                     <option value="<?= Http::e($reason) ?>"><?= Http::e($reason) ?></option>
                 <?php endforeach; ?>
             </select>
         </label>
-        <label data-worker>Worker
+        <label data-worker hidden>Worker
             <select name="worker">
                 <option value="">Select a worker...</option>
                 <?php foreach ($workers as $worker): ?>
@@ -31,22 +34,18 @@
 </section>
 <section class="panel" style="margin-top:1rem">
     <h2>Delete or reduce a payment</h2>
-    <p class="note">Leave the amount blank to delete the selected payment. Enter an amount to subtract it. A matching reason is required only when a reason is selected.</p>
-    <form method="post" class="stack">
+    <p class="note">Select a payment to load its reason and current amount. Enter an amount to subtract it, or clear the amount to delete the selected payment.</p>
+    <form method="post" class="stack" id="payment-adjust-form">
         <?= Http::csrfField() ?>
         <input type="hidden" name="action" value="adjust">
         <div class="form-grid">
-            <label>Reason check
-                <select name="reason">
-                    <option value="">No reason check</option>
-                    <?php foreach (Catalog::PAYMENT_REASONS as $reason): ?>
-                        <option value="<?= Http::e($reason) ?>"><?= Http::e($reason) ?></option>
-                    <?php endforeach; ?>
-                </select>
+            <label>Reason
+                <input name="reason" readonly disabled>
             </label>
             <label>Amount to remove
-                <input name="amount" inputmode="decimal">
+                <input name="amount" inputmode="decimal" disabled>
             </label>
+            <button class="danger" type="submit">Update payment</button>
         </div>
         <div class="table-wrap">
             <table>
@@ -55,7 +54,7 @@
                 <tbody>
                 <?php foreach ($rows as $row): ?>
                     <tr>
-                        <td><input type="radio" name="payment_id" value="<?= Http::e($row['PaymentID']) ?>" required aria-label="Select payment <?= Http::e($row['PaymentID']) ?>"></td>
+                        <td><input type="radio" name="payment_id" data-toggle-radio data-payment='<?= Http::e(json_encode($row, JSON_HEX_APOS | JSON_HEX_QUOT)) ?>' value="<?= Http::e($row['PaymentID']) ?>" required aria-label="Select payment <?= Http::e($row['PaymentID']) ?>"></td>
                         <td><?= Http::e($row['PaymentID']) ?></td>
                         <td><?= Http::e(Http::money($row['Amount'])) ?></td>
                         <td><?= Http::e($row['Reason']) ?></td>
@@ -66,7 +65,27 @@
                 </tbody>
             </table>
         </div>
-        <label class="check"><input type="checkbox" name="confirm" value="yes" required> I confirm this payment change</label>
-        <button class="danger" type="submit">Update payment</button>
     </form>
 </section>
+<p class="page-back"><a class="button secondary" href="<?= Http::e(Http::url('/owner')) ?>">Back</a></p>
+<script>
+document.querySelectorAll("[data-payment]").forEach(function (radio) {
+    radio.addEventListener("change", function () {
+        const form = document.getElementById("payment-adjust-form");
+        const reason = form.elements.namedItem("reason");
+        const amount = form.elements.namedItem("amount");
+        if (radio.checked) {
+            const payment = JSON.parse(radio.getAttribute("data-payment"));
+            reason.value = payment.Reason;
+            amount.value = payment.Amount;
+            reason.disabled = false;
+            amount.disabled = false;
+        } else if (!form.querySelector("[name=payment_id]:checked")) {
+            reason.value = "";
+            amount.value = "";
+            reason.disabled = true;
+            amount.disabled = true;
+        }
+    });
+});
+</script>

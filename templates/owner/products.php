@@ -1,21 +1,20 @@
 <?php use Fms\Http; ?>
 <section class="panel">
-    <h2>Add product</h2>
-    <form method="post" class="form-grid">
-        <?= Http::csrfField() ?>
-        <input type="hidden" name="action" value="add">
-        <label>Name
-            <input name="name" required maxlength="100" value="<?= Http::e(Http::old('name')) ?>">
-        </label>
-        <label>Unit
-            <input name="unit" required maxlength="30" value="<?= Http::e(Http::old('unit')) ?>" placeholder="Piece, Sqft, …">
-        </label>
-        <button type="submit">Add product</button>
-    </form>
-</section>
-<section class="panel" style="margin-top:1rem">
+    <h2>Products</h2>
     <form method="post" class="stack" id="product-form">
         <?= Http::csrfField() ?>
+        <div class="form-grid">
+            <label>Name
+                <input name="name" required maxlength="100" value="<?= Http::e(Http::old('name')) ?>">
+            </label>
+            <label>Unit
+                <input name="unit" required maxlength="30" value="<?= Http::e(Http::old('unit')) ?>" placeholder="Piece, Sqft, …">
+            </label>
+            <div class="actions">
+                <button type="submit" name="action" value="add">Add product</button>
+                <button class="danger" type="submit" name="action" value="delete" formnovalidate>Remove product</button>
+            </div>
+        </div>
         <div class="table-wrap">
             <table>
                 <caption>Products</caption>
@@ -23,7 +22,7 @@
                 <tbody>
                 <?php foreach ($rows as $row): ?>
                     <tr>
-                        <td><input type="radio" name="product_id" value="<?= Http::e($row['ProductID']) ?>" data-product='<?= Http::e(json_encode($row, JSON_HEX_APOS | JSON_HEX_QUOT)) ?>' aria-label="Select <?= Http::e($row['Name']) ?>"></td>
+                        <td><input type="radio" name="product_id" data-toggle-radio value="<?= Http::e($row['ProductID']) ?>" aria-label="Select <?= Http::e($row['Name']) ?>"></td>
                         <td><?= Http::e($row['ProductID']) ?></td>
                         <td><?= Http::e($row['Name']) ?></td>
                         <td><?= Http::e($row['Unit']) ?></td>
@@ -33,27 +32,16 @@
                 </tbody>
             </table>
         </div>
-        <div class="form-grid">
-            <label>Name
-                <input name="name" maxlength="100">
-            </label>
-            <label>Unit
-                <input name="unit" maxlength="30">
-            </label>
-            <button class="secondary" type="submit" name="action" value="update">Update selected</button>
-        </div>
-        <label class="check"><input type="checkbox" name="confirm" value="yes"> I confirm removal of the selected product</label>
-        <button class="danger" type="submit" name="action" value="delete">Remove product</button>
     </form>
-    <p class="note">A product that already has production records cannot be removed. Updating the name keeps those records.</p>
+    <p class="note">Products with production records cannot be removed.</p>
 </section>
 <script>
-document.querySelectorAll("[data-product]").forEach(function (radio) {
-    radio.addEventListener("change", function () {
-        const row = JSON.parse(radio.getAttribute("data-product"));
-        const form = document.getElementById("product-form");
-        form.name.value = row.Name;
-        form.unit.value = row.Unit;
-    });
+document.getElementById("product-form").addEventListener("submit", function (event) {
+    const selectedProduct = event.currentTarget.querySelector("[name=product_id]:checked");
+    if (event.submitter && event.submitter.value === "delete" && selectedProduct
+        && !window.confirm("Are you sure you want to remove the selected product?")) {
+        event.preventDefault();
+    }
 });
 </script>
+<p class="page-back"><a class="button secondary" href="<?= Http::e(Http::url('/owner')) ?>">Back</a></p>

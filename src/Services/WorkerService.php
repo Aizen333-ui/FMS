@@ -5,7 +5,6 @@ namespace Fms\Services;
 
 use Fms\Audit;
 use Fms\Auth;
-use Fms\Catalog;
 use Fms\Database;
 use Fms\ValidationException;
 
@@ -24,11 +23,12 @@ final class WorkerService
     public static function add(string $name, string $role, string $salaryText): void
     {
         $name = trim($name);
+        $role = trim($role);
         if (!preg_match('/^[A-Za-z ]{3,30}$/', $name)) {
             throw new ValidationException('Worker name must be alphabets only (3–30 chars).');
         }
-        if (!in_array($role, Catalog::WORKER_ROLES, true)) {
-            throw new ValidationException('Please select a worker role.');
+        if (!preg_match('/^.{1,50}$/us', $role)) {
+            throw new ValidationException('Worker role is required and must be 50 characters or fewer.');
         }
         if (!is_numeric($salaryText)) {
             throw new ValidationException('Salary can only be entered in numbers.');
@@ -55,6 +55,56 @@ final class WorkerService
         );
     }
 
+    public static function update(int $id, string $name, string $role, string $salaryText): void
+    {
+        $name = trim($name);
+        $role = trim($role);
+        if ($id <= 0) {
+            throw new ValidationException('Select a worker to update.');
+        }
+        $current = Database::one(
+            'SELECT Name, Role, Salary FROM Workers WHERE WorkerID = ?',
+            [$id]
+        );
+        if ($current === null) {
+            throw new ValidationException('Select a worker to update.');
+        }
+        if (!preg_match('/^[A-Za-z ]{3,30}$/', $name)) {
+            throw new ValidationException('Worker name must be alphabets only (3–30 chars).');
+        }
+        if (!preg_match('/^.{1,50}$/us', $role)) {
+            throw new ValidationException('Worker role is required and must be 50 characters or fewer.');
+        }
+        if (!is_numeric($salaryText)) {
+            throw new ValidationException('Salary can only be entered in numbers.');
+        }
+        $salary = round((float) $salaryText, 2);
+        if ($salary < 0) {
+            throw new ValidationException('Salary can only be entered in numbers.');
+        }
+        if ($name === (string) $current['Name']
+            && $role === (string) $current['Role']
+            && $salary === round((float) $current['Salary'], 2)) {
+            throw new ValidationException('No changes were made.');
+        }
+        try {
+            Database::execute(
+                'UPDATE Workers SET Name = ?, Role = ?, Salary = ? WHERE WorkerID = ?',
+                [$name, $role, $salary, $id]
+            );
+        } catch (\Throwable $e) {
+            Audit::add(Auth::username(), 'UPDATE', 'Workers', "Failed to update worker with ID {$id}. Error: {$e->getMessage()}", 'Failed');
+            throw new ValidationException('Error updating worker: ' . $e->getMessage());
+        }
+        Audit::add(
+            Auth::username(),
+            'UPDATE',
+            'Workers',
+            "Updated worker '{$name}' (ID={$id}) with role '{$role}' and salary Rs {$salary}",
+            'Success'
+        );
+    }
+
     public static function remove(int $id): void
     {
         $exists = Database::one('SELECT WorkerID FROM Workers WHERE WorkerID = ?', [$id]);
@@ -73,11 +123,8 @@ final class WorkerService
     public static function countsByRole(): array
     {
         $counts = [];
-        foreach (Catalog::WORKER_ROLES as $role) {
-            $counts[$role] = (int) Database::value(
-                'SELECT COUNT(*) FROM Workers WHERE Role = ?',
-                [$role]
-            );
+        foreach (Database::all('SELECT Role, COUNT(*) AS WorkerCount FROM Workers GROUP BY Role ORDER BY Role') as $row) {
+            $counts[(string) $row['Role']] = (int) $row['WorkerCount'];
         }
         return $counts;
     }

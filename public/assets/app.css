@@ -48,7 +48,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; align-items: end; }
 .user-search { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; }
 .user-search label { flex: 0 1 320px; }
+.stock-remove-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; }
+.stock-remove-controls label { flex: 0 1 280px; }
 label { display: grid; gap: 0.3rem; font-weight: 600; font-size: 0.92rem; }
+[hidden] { display: none !important; }
 input, select, textarea { background: white; border: 1px solid #cfc3b2; border-radius: 8px; padding: 0.55rem 0.65rem; width: 100%; }
 textarea { min-height: 4.5rem; }
 input:focus, select:focus, textarea:focus, button:focus { outline: 3px solid #e7b48a; outline-offset: 1px; }

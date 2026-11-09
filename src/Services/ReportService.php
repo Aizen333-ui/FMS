@@ -72,6 +72,18 @@ final class ReportService
                 'Date' => $row['ReturnDate'],
             ];
         }
+        foreach (Database::all(
+            'SELECT Reason, Amount, Date FROM Payments
+             WHERE Date >= ? AND Date < ? ORDER BY Date',
+            [$start, $end]
+        ) as $row) {
+            $rows[] = [
+                'Type' => 'Payment',
+                'Name' => $row['Reason'],
+                'Amount' => $row['Amount'],
+                'Date' => $row['Date'],
+            ];
+        }
         if ($type !== 'All') {
             if (!in_array($type, Catalog::REPORT_TYPES, true)) {
                 throw new ValidationException('Unknown report filter.');

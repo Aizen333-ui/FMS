@@ -6,15 +6,13 @@ $role = Auth::role();
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 $nav = match ($role) {
     'Owner' => [
-        '/owner' => 'Dashboard',
-        '/owner/materials' => 'Raw material',
-        '/owner/products' => 'Products',
-        '/owner/payments' => 'Payments',
-        '/owner/workers' => 'Workers',
-        '/owner/reports' => 'Reports',
+        '/owner/materials' => '📦 Raw Material',
+        '/owner/products' => '🧱 Products',
+        '/owner/payments' => '💰 Payments',
+        '/owner/workers' => '👷 Manage Workers',
+        '/owner/reports' => '📄 Reports',
     ],
     'Manager' => [
-        '/factory' => 'Dashboard',
         '/factory/production' => 'Record production',
         '/factory/usage' => 'Material usage',
     ],

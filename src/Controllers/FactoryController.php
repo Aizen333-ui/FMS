@@ -42,9 +42,6 @@ final class FactoryController
         Guard::database();
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             Guard::handle(function (): string {
-                if (Http::post('confirm') !== 'yes') {
-                    throw new \Fms\ValidationException('Confirm the action before continuing.');
-                }
                 $line = Http::post('material_id');
                 MaterialService::recordUsage(
                     $line === '' ? null : (int) $line,
@@ -58,6 +55,7 @@ final class FactoryController
         Http::render('factory/usage', [
             'title' => 'Raw material usage',
             'rows' => MaterialService::list(),
+            'materials' => MaterialService::materials(),
         ]);
     }
 }

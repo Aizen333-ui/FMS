@@ -37,33 +37,6 @@ final class ProductService
         Audit::add(Auth::username(), 'CREATE', 'Products', "Added product '{$name}' ({$unit})", 'Success');
     }
 
-    public static function update(int $id, string $name, string $unit): void
-    {
-        $name = self::name($name);
-        $unit = self::unit($unit);
-        $current = Database::one('SELECT ProductID, Name, Unit FROM Products WHERE ProductID = ?', [$id]);
-        if ($current === null) {
-            throw new ValidationException('Select a product first.');
-        }
-        if ((string) $current['Name'] === $name && (string) $current['Unit'] === $unit) {
-            throw new ValidationException('No changes were made.');
-        }
-        self::assertUnique($name, $id);
-        $previous = (string) $current['Name'];
-        try {
-            Database::transaction(function () use ($id, $name, $unit, $previous): void {
-                Database::execute('UPDATE Products SET Name = ?, Unit = ? WHERE ProductID = ?', [$name, $unit, $id]);
-                if ($previous !== $name) {
-                    Database::execute('UPDATE Production SET ProductName = ? WHERE ProductName = ?', [$name, $previous]);
-                    Database::execute('UPDATE SaleItems SET ProductName = ? WHERE ProductName = ?', [$name, $previous]);
-                }
-            });
-        } catch (PDOException $e) {
-            throw new ValidationException(self::duplicate($e) ? 'A product with that name already exists.' : 'Error updating product: ' . $e->getMessage());
-        }
-        Audit::add(Auth::username(), 'UPDATE', 'Products', "Updated product '{$previous}' to '{$name}' ({$unit})", 'Success');
-    }
-
     public static function remove(int $id): void
     {
         $current = Database::one('SELECT ProductID, Name FROM Products WHERE ProductID = ?', [$id]);

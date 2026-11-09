@@ -40,3 +40,4 @@
         </table>
     </div>
 </section>
+<p class="page-back"><a class="button secondary" href="<?= Http::e(Http::url('/factory')) ?>">Back</a></p>

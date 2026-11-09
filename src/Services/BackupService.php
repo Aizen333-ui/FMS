@@ -20,6 +20,7 @@ final class BackupService
         'Workers',
         'Products',
         'Customers',
+        'MaterialCatalog',
         'RawMaterial',
         'Payments',
         'Production',

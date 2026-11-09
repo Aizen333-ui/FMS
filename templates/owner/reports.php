@@ -28,7 +28,7 @@
                 <tr>
                     <td><?= Http::e($row['Type']) ?></td>
                     <td><?= Http::e($row['Name']) ?></td>
-                    <td><?= Http::e(Http::qty($row['Amount'])) ?></td>
+                    <td><?= Http::e($row['Type'] === 'Payment' ? Http::money($row['Amount']) : Http::qty($row['Amount'])) ?></td>
                     <td><?= Http::e($row['Date']) ?></td>
                 </tr>
             <?php endforeach; ?>
@@ -38,3 +38,4 @@
         </table>
     </div>
 </section>
+<p class="page-back"><a class="button secondary" href="<?= Http::e(Http::url('/owner')) ?>">Back</a></p>

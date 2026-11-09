@@ -30,13 +30,19 @@ final class OwnerController
             Guard::handle(function (): string {
                 $action = Http::post('action');
                 if ($action === 'add') {
-                    MaterialService::add(Http::post('name'), Http::post('quantity'), Http::post('unit_price'));
+                    MaterialService::add(
+                        Http::post('name'),
+                        Http::post('unit'),
+                        Http::post('quantity'),
+                        Http::post('unit_price')
+                    );
                     return 'Material added successfully!';
                 }
                 if ($action === 'remove') {
-                    self::confirmed();
                     $id = Http::post('material_id');
-                    return MaterialService::remove($id === '' ? null : (int) $id, Http::post('name'), Http::post('quantity'));
+                    MaterialService::remove($id === '' ? null : (int) $id, Http::post('name'), Http::post('quantity'));
+                    Http::flash('deleted', 'Stock removed successfully.');
+                    return '';
                 }
                 throw new \Fms\ValidationException('Unknown action.');
             }, '/owner/materials');
@@ -44,6 +50,7 @@ final class OwnerController
         Http::render('owner/materials', [
             'title' => 'Raw material',
             'rows' => MaterialService::list(),
+            'materials' => MaterialService::materials(),
         ]);
     }
 
@@ -58,12 +65,7 @@ final class OwnerController
                     ProductService::add(Http::post('name'), Http::post('unit'));
                     return 'Product added.';
                 }
-                if ($action === 'update') {
-                    ProductService::update($id, Http::post('name'), Http::post('unit'));
-                    return 'Product updated.';
-                }
                 if ($action === 'delete') {
-                    self::confirmed();
                     ProductService::remove($id);
                     return 'Product removed.';
                 }
@@ -87,7 +89,6 @@ final class OwnerController
                     return 'Payment added!';
                 }
                 if ($action === 'adjust') {
-                    self::confirmed();
                     $id = (int) Http::post('payment_id');
                     if ($id <= 0) {
                         throw new \Fms\ValidationException('Select a payment row first!');
@@ -101,6 +102,7 @@ final class OwnerController
             'title' => 'Payments',
             'rows' => PaymentService::list(),
             'workers' => WorkerService::names(),
+            'materials' => MaterialService::materials(),
         ]);
     }
 
@@ -114,10 +116,19 @@ final class OwnerController
                     WorkerService::add(Http::post('name'), Http::post('role'), Http::post('salary'));
                     return 'Worker added successfully!';
                 }
+                if ($action === 'update') {
+                    WorkerService::update(
+                        (int) Http::post('worker_id'),
+                        Http::post('name'),
+                        Http::post('role'),
+                        Http::post('salary')
+                    );
+                    return 'Worker updated successfully!';
+                }
                 if ($action === 'remove') {
-                    self::confirmed();
                     WorkerService::remove((int) Http::post('worker_id'));
-                    return 'Worker removed!';
+                    Http::flash('deleted', 'Worker removed successfully.');
+                    return '';
                 }
                 throw new \Fms\ValidationException('Unknown action.');
             }, '/owner/workers');
@@ -153,10 +164,4 @@ final class OwnerController
         ]);
     }
 
-    private static function confirmed(): void
-    {
-        if (Http::post('confirm') !== 'yes') {
-            throw new \Fms\ValidationException('Confirm the action before continuing.');
-        }
-    }
 }

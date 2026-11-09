@@ -16,8 +16,8 @@
     <section class="panel">
         <h2>Raw material on hand</h2>
         <div class="cards">
-            <?php foreach ($data['materials'] as $name => $qty): ?>
-                <article class="card"><span><?= Http::e($name) ?></span><strong><?= Http::e(Http::qty($qty)) ?></strong></article>
+            <?php foreach ($data['materials'] as $name => $material): ?>
+                <article class="card"><span><?= Http::e($name) ?></span><strong><?= Http::e(Http::qty($material['Quantity'])) ?> <?= Http::e($material['Unit']) ?></strong></article>
             <?php endforeach; ?>
         </div>
     </section>

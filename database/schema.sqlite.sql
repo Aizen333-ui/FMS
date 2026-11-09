@@ -45,6 +45,17 @@ CREATE TABLE IF NOT EXISTS RawMaterial (
     UnitPrice REAL NOT NULL CHECK (UnitPrice > 0)
 );
 
+CREATE TABLE IF NOT EXISTS MaterialCatalog (
+    Name TEXT PRIMARY KEY COLLATE NOCASE,
+    Unit TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO MaterialCatalog (Name, Unit)
+SELECT MIN(TRIM(Name)), MAX(TRIM(Unit))
+FROM RawMaterial
+WHERE TRIM(Name) <> ''
+GROUP BY UPPER(TRIM(Name));
+
 CREATE TABLE IF NOT EXISTS Payments (
     PaymentID INTEGER PRIMARY KEY AUTOINCREMENT,
     Amount REAL NOT NULL CHECK (Amount > 0),

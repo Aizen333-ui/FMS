@@ -5,9 +5,9 @@ namespace Fms\Services;
 
 use Fms\Audit;
 use Fms\Auth;
-use Fms\Catalog;
 use Fms\Database;
 use Fms\Http;
+use Fms\Schema;
 use Fms\ValidationException;
 
 final class MaterialService
@@ -19,30 +19,44 @@ final class MaterialService
         );
     }
 
+    public static function materials(): array
+    {
+        self::ensureCatalog();
+        return Database::all('SELECT Name, Unit FROM MaterialCatalog ORDER BY Name');
+    }
+
     public static function stockByName(): array
     {
+        self::ensureCatalog();
         $rows = Database::all(
-            'SELECT UPPER(TRIM(Name)) AS Name, COALESCE(SUM(Quantity), 0) AS Quantity
-             FROM RawMaterial GROUP BY UPPER(TRIM(Name))'
+            'SELECT mc.Name, mc.Unit, COALESCE(SUM(rm.Quantity), 0) AS Quantity
+             FROM MaterialCatalog mc
+             LEFT JOIN RawMaterial rm ON LOWER(TRIM(rm.Name)) = LOWER(TRIM(mc.Name))
+             GROUP BY mc.Name
+             ORDER BY mc.Name'
         );
         $stock = [];
-        foreach (Catalog::MATERIALS as $name) {
-            $stock[$name] = 0;
-        }
         foreach ($rows as $row) {
-            foreach (Catalog::MATERIALS as $name) {
-                if (strtoupper(trim($name)) === (string) $row['Name']) {
-                    $stock[$name] = (float) $row['Quantity'];
-                }
-            }
+            $stock[(string) $row['Name']] = [
+                'Quantity' => (float) $row['Quantity'],
+                'Unit' => (string) $row['Unit'],
+            ];
         }
         return $stock;
     }
 
-    public static function add(string $name, string $quantityText, string $unitPriceText): void
+    public static function add(string $name, string $unit, string $quantityText, string $unitPriceText): void
     {
-        if (!in_array($name, Catalog::MATERIALS, true)) {
-            throw new ValidationException('Please fill all fields!');
+        self::ensureCatalog();
+        $name = trim($name);
+        $unit = trim($unit);
+        $nameLength = preg_match_all('/./us', $name);
+        $unitLength = preg_match_all('/./us', $unit);
+        if ($name === '' || $nameLength === false || $nameLength > 100) {
+            throw new ValidationException('Enter a material name of at most 100 characters.');
+        }
+        if ($unit === '' || $unitLength === false || $unitLength > 30) {
+            throw new ValidationException('Enter a unit of at most 30 characters.');
         }
         if (!is_numeric($quantityText) || (float) $quantityText <= 0) {
             throw new ValidationException('Quantity must be a positive number.');
@@ -52,10 +66,24 @@ final class MaterialService
         }
         $quantity = round((float) $quantityText, 2);
         $unitPrice = round((float) $unitPriceText, 2);
-        $unit = Catalog::materialUnit($name);
         $total = round($quantity * $unitPrice, 2);
         try {
-            Database::transaction(function () use ($name, $quantity, $unit, $unitPrice, $total): void {
+            Database::transaction(function () use (&$name, &$unit, $quantity, $unitPrice, $total): void {
+                $material = Database::one('SELECT Name, Unit FROM MaterialCatalog WHERE Name = ?', [$name]);
+                if ($material !== null) {
+                    if (strcasecmp(trim((string) $material['Unit']), $unit) !== 0) {
+                        throw new ValidationException(
+                            "Material '{$material['Name']}' already exists with unit '{$material['Unit']}'."
+                        );
+                    }
+                    $name = (string) $material['Name'];
+                    $unit = (string) $material['Unit'];
+                } else {
+                    Database::execute(
+                        'INSERT INTO MaterialCatalog (Name, Unit) VALUES (?, ?)',
+                        [$name, $unit]
+                    );
+                }
                 Database::execute(
                     'INSERT INTO RawMaterial (Name, Quantity, Unit, UnitPrice) VALUES (?, ?, ?, ?)',
                     [$name, $quantity, $unit, $unitPrice]
@@ -87,9 +115,14 @@ final class MaterialService
      */
     public static function remove(?int $materialId, string $name, string $quantityText): string
     {
+        self::ensureCatalog();
         $name = trim($name);
-        if (!in_array($name, Catalog::MATERIALS, true)) {
-            $name = '';
+        if ($name !== '') {
+            $material = Database::one('SELECT Name FROM MaterialCatalog WHERE Name = ?', [$name]);
+            if ($material === null) {
+                throw new ValidationException('Select a material from the list.');
+            }
+            $name = (string) $material['Name'];
         }
         if ($materialId !== null && $name === '') {
             $row = Database::one('SELECT MaterialID FROM RawMaterial WHERE MaterialID = ?', [$materialId]);
@@ -108,7 +141,8 @@ final class MaterialService
         }
         $removeQty = round((float) $quantityText, 2);
         $row = Database::one(
-            'SELECT MaterialID, Quantity FROM RawMaterial WHERE Name = ? ORDER BY MaterialID',
+            'SELECT MaterialID, Quantity FROM RawMaterial
+             WHERE LOWER(TRIM(Name)) = LOWER(TRIM(?)) ORDER BY MaterialID',
             [$name]
         );
         if ($row === null) {
@@ -143,6 +177,7 @@ final class MaterialService
      */
     public static function planUsage(?int $lineId, string $dropdownName, string $quantityText): array
     {
+        self::ensureCatalog();
         $quantity = null;
         if ($quantityText !== '') {
             if (!is_numeric($quantityText) || (float) $quantityText <= 0) {
@@ -170,14 +205,17 @@ final class MaterialService
             }
             return [[(int) $row['MaterialID'], (string) $row['Name'], $toRemove]];
         }
-        if (!in_array($dropdownName, Catalog::MATERIALS, true)) {
+        $material = Database::one('SELECT Name FROM MaterialCatalog WHERE Name = ?', [$dropdownName]);
+        if ($material === null) {
             throw new ValidationException('Select material from the dropdown, or click a grid row — leave quantity blank to clear that row, or enter an amount.');
         }
+        $dropdownName = (string) $material['Name'];
         if ($quantity === null) {
             throw new ValidationException('Pick a grid row and leave quantity blank to remove that whole line, or enter how much to take from stock.');
         }
         $lines = Database::all(
-            'SELECT MaterialID, Name, Quantity FROM RawMaterial WHERE Name = ? ORDER BY MaterialID',
+            'SELECT MaterialID, Name, Quantity FROM RawMaterial
+             WHERE LOWER(TRIM(Name)) = LOWER(TRIM(?)) ORDER BY MaterialID',
             [$dropdownName]
         );
         if ($lines === []) {
@@ -210,6 +248,10 @@ final class MaterialService
         $deductions = self::planUsage($lineId, $dropdownName, $quantityText);
         $when = Http::dateTimeFromDay($day);
         $displayName = $deductions[0][1];
+        $unit = Database::value('SELECT Unit FROM MaterialCatalog WHERE Name = ?', [$displayName]);
+        if (!is_string($unit) || $unit === '') {
+            throw new ValidationException('Material unit was not found. Refresh the material catalog and try again.');
+        }
         $total = 0.0;
         foreach ($deductions as $deduction) {
             $total += $deduction[2];
@@ -235,7 +277,6 @@ final class MaterialService
         } catch (\Throwable $e) {
             throw new ValidationException('Error removing: ' . $e->getMessage());
         }
-        $unit = Catalog::usageUnit($displayName);
         Audit::add(
             Auth::username(),
             'REMOVE',
@@ -243,5 +284,10 @@ final class MaterialService
             "Removed {$total} {$unit} of {$displayName} from raw material stock",
             'Success'
         );
+    }
+
+    public static function ensureCatalog(): void
+    {
+        Schema::ensureMaterialCatalog(Database::pdo());
     }
 }

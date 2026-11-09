@@ -5,6 +5,22 @@
         }, 10000);
     });
 
+    document.querySelectorAll("[data-toggle-radio]").forEach(function (radio) {
+        let wasCheckedOnPointerDown = false;
+
+        radio.addEventListener("pointerdown", function () {
+            wasCheckedOnPointerDown = radio.checked;
+        });
+
+        radio.addEventListener("click", function () {
+            if (wasCheckedOnPointerDown && radio.checked) {
+                radio.checked = false;
+                radio.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            wasCheckedOnPointerDown = false;
+        });
+    });
+
     const toggle = document.querySelector("[data-menu]");
     const sidebar = document.querySelector(".sidebar");
     if (toggle && sidebar) {

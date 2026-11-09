@@ -21,7 +21,9 @@ final class PaymentService
 
     public static function add(string $reason, string $workerName, string $amountText, string $day): void
     {
-        if (!in_array($reason, Catalog::PAYMENT_REASONS, true)) {
+        MaterialService::ensureCatalog();
+        $material = Database::one('SELECT Name FROM MaterialCatalog WHERE Name = ?', [$reason]);
+        if (!in_array($reason, Catalog::PAYMENT_REASONS, true) && $material === null) {
             throw new ValidationException('Please select a reason.');
         }
         if (!is_numeric($amountText) || (float) $amountText <= 0) {
@@ -54,6 +56,7 @@ final class PaymentService
 
     public static function adjust(int $paymentId, string $selectedReason, string $amountText): string
     {
+        MaterialService::ensureCatalog();
         $payment = Database::one(
             'SELECT PaymentID, Amount, Reason FROM Payments WHERE PaymentID = ?',
             [$paymentId]
@@ -62,14 +65,10 @@ final class PaymentService
             throw new ValidationException('Select a payment row first!');
         }
         $gridReason = trim((string) $payment['Reason']);
-        if (in_array($selectedReason, Catalog::PAYMENT_REASONS, true)) {
-            if ($selectedReason === 'Worker Salary') {
-                if (!str_starts_with($gridReason, 'Worker Salary')) {
-                    throw new ValidationException('Selected reason does not match the selected payment.');
-                }
-            } elseif ($gridReason !== $selectedReason) {
-                throw new ValidationException('Selected reason does not match the selected payment.');
-            }
+        $salaryReasonMatches = $selectedReason === 'Worker Salary'
+            && str_starts_with($gridReason, 'Worker Salary - ');
+        if ($selectedReason !== '' && $gridReason !== $selectedReason && !$salaryReasonMatches) {
+            throw new ValidationException('Selected reason does not match the selected payment.');
         }
         $current = round((float) $payment['Amount'], 2);
         if ($amountText === '') {

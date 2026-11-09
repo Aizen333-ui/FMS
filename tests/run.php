@@ -59,6 +59,16 @@ check($config['connection_string'] === '', 'committed connection string stays em
 
 Schema::apply(Database::pdo());
 check(Database::driver() === 'sqlite', 'test database is sqlite');
+Database::execute(
+    'INSERT INTO RawMaterial (Name, Quantity, Unit, UnitPrice) VALUES (?, ?, ?, ?)',
+    ['Legacy Lime', 4, 'Pail', 8]
+);
+Database::execute('DROP TABLE MaterialCatalog');
+Schema::ensureMaterialCatalog(Database::pdo());
+check(
+    in_array(['Name' => 'Legacy Lime', 'Unit' => 'Pail'], MaterialService::materials(), true),
+    'runtime migration creates a missing catalog and imports existing stock names and units'
+);
 
 expect(fn () => Auth::attemptStaff('', ''), 'Please enter username and password', 'blank staff login');
 expect(fn () => AdminService::createFirst('root', 'secret', 'other'), 'do not match', 'admin password confirmation');
@@ -99,14 +109,23 @@ check(count(CustomerService::list('030076')) === 1, 'customer search finds the n
 
 expect(fn () => WorkerService::add('Al', 'Labor', '100'), 'alphabets', 'short worker name is rejected');
 expect(fn () => WorkerService::add('Ali1', 'Labor', '100'), 'alphabets', 'worker name cannot contain digits');
-WorkerService::add('Ali Raza', 'Labor', '25000');
-check(WorkerService::countsByRole()['Labor'] === 1, 'labor count');
+expect(fn () => WorkerService::add('Ali Raza', '', '25000'), 'role is required', 'worker role is required');
+expect(fn () => WorkerService::add('Ali Raza', str_repeat('R', 51), '25000'), '50 characters', 'worker role length is limited');
+WorkerService::add('Ali Raza', 'Electrical Technician', '25000');
+$worker = Database::one('SELECT WorkerID FROM Workers WHERE Name = ?', ['Ali Raza']);
+$workerId = (int) $worker['WorkerID'];
+check(WorkerService::countsByRole()['Electrical Technician'] === 1, 'custom worker role count');
+expect(fn () => WorkerService::update(0, 'Ali Raza', 'Electrical Technician', '25000'), 'Select a worker', 'worker update requires a selected worker');
+expect(fn () => WorkerService::update($workerId, 'Ali Raza', 'Electrical Technician', '25000'), 'No changes', 'unchanged worker is rejected');
+WorkerService::update($workerId, 'Ali Raza', 'Senior Electrical Technician', '27500');
+check(WorkerService::countsByRole()['Senior Electrical Technician'] === 1, 'worker role and salary can be updated');
 
 check(ProductService::list() === [], 'products start empty, like workers');
 expect(fn () => ProductionService::record('Tuff Tile', '1', date('Y-m-d')), 'select a product', 'production requires a product the owner added');
 ProductService::add('Tuff Tile', 'Sqft');
 ProductService::add('Solid Block', 'Piece');
 ProductService::add('Hollow Block', 'Piece');
+expect(fn () => ProductService::remove(0), 'Select a product', 'product removal requires a selected product');
 expect(fn () => ProductionService::record('Tuff Tile', '10001', date('Y-m-d')), '10000', 'production above 10000 is rejected');
 expect(fn () => ProductionService::record('Tuff Tile', '0', date('Y-m-d')), '10000', 'zero production is rejected');
 expect(fn () => ProductionService::record('Tuff Tile', '5', '2999-01-01'), 'Future', 'future production date is rejected');
@@ -114,13 +133,19 @@ ProductionService::record('Tuff Tile', '4', date('Y-m-d'));
 ProductionService::record('Tuff Tile', '3', date('Y-m-d'));
 ProductionService::record('Solid Block', '500', date('Y-m-d'));
 ProductionService::record('Hollow Block', '501', date('Y-m-d'));
+$tuffTile = ProductService::find('Tuff Tile');
+expect(fn () => ProductService::remove((int) $tuffTile['ProductID']), 'production records', 'product with production history cannot be removed');
+ProductService::add('Temporary Product', 'Unit');
+$temporaryProduct = ProductService::find('Temporary Product');
+ProductService::remove((int) $temporaryProduct['ProductID']);
+check(ProductService::find('Temporary Product') === null, 'unused product can be removed');
 $dash = SalesService::dashboard();
 check($dash['low_stock'] === 3, 'dashboard low stock uses 500');
 $low = ProductionService::search('', 'Low Stock');
 check(count($low) === 4, 'product low stock uses 5000 and excludes zero');
 
-MaterialService::add('Cement', '10', '50');
-MaterialService::add('Cement', '10', '60');
+MaterialService::add('Cement', 'Bag', '10', '50');
+MaterialService::add('Cement', 'Bag', '10', '60');
 $payments = PaymentService::list();
 check(count($payments) === 2, 'material receipt creates an expense');
 check(abs((float) $payments[1]['Amount'] - 500.0) < 0.001 || abs((float) $payments[0]['Amount'] - 500.0) < 0.001, 'expense equals quantity times price');
@@ -131,6 +156,30 @@ MaterialService::recordUsage(null, 'Cement', '6', date('Y-m-d'));
 $left = (float) Database::value('SELECT Quantity FROM RawMaterial WHERE Name = ?', ['Cement']);
 check(abs($left - 4) < 0.001, 'usage spreads across stock lines');
 expect(fn () => MaterialService::recordUsage(null, 'Cement', '100', date('Y-m-d')), 'Not enough', 'usage cannot exceed stock');
+MaterialService::add('Recycled Aggregate', 'Cubic Yard', '3', '12');
+check(
+    in_array(['Name' => 'Recycled Aggregate', 'Unit' => 'Cubic Yard'], MaterialService::materials(), true),
+    'custom material and unit are saved in the material catalog'
+);
+expect(
+    fn () => MaterialService::add('Recycled Aggregate', 'Ton', '1', '12'),
+    'already exists with unit',
+    'an existing material cannot be added with a conflicting unit'
+);
+MaterialService::recordUsage(null, 'Recycled Aggregate', '1', date('Y-m-d'));
+check(
+    abs((float) Database::value('SELECT Quantity FROM RawMaterial WHERE Name = ?', ['Recycled Aggregate']) - 2) < 0.001,
+    'custom catalog materials can be used in factory usage'
+);
+PaymentService::add('Recycled Aggregate', '', '10', date('Y-m-d'));
+$materialPayment = Database::one(
+    "SELECT PaymentID, Amount FROM Payments WHERE Reason = 'Recycled Aggregate' ORDER BY PaymentID DESC LIMIT 1"
+);
+PaymentService::adjust((int) $materialPayment['PaymentID'], 'Recycled Aggregate', '4');
+check(
+    abs((float) Database::value('SELECT Amount FROM Payments WHERE PaymentID = ?', [(int) $materialPayment['PaymentID']]) - 6) < 0.001,
+    'custom material payment reasons can be adjusted'
+);
 
 PaymentService::add('Factory Rent', '', '100', date('Y-m-d'));
 $rent = Database::one("SELECT PaymentID FROM Payments WHERE Reason = 'Factory Rent'");
@@ -181,6 +230,11 @@ $midday = date('Y-m-d') . ' 15:00:00';
 Database::execute('UPDATE Production SET Date = ? WHERE ProductionID = ?', [$midday, (int) $items[0]['ProductionID']]);
 $report = ReportService::owner(date('Y-m-d'), date('Y-m-d'), 'Production');
 check($report !== [], 'report range includes records later on the end date');
+$paymentReport = ReportService::owner(date('Y-m-d'), date('Y-m-d'), 'Payment');
+check(
+    count(array_filter($paymentReport, static fn (array $row): bool => $row['Name'] === 'Recycled Aggregate')) > 0,
+    'owner payment report includes payments in the selected date range'
+);
 
 $sql = BackupService::sql();
 check(str_contains($sql, 'INSERT INTO Customers') && str_contains($sql, 'Amina Khan'), 'backup exports customer rows');
